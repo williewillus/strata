@@ -155,6 +155,10 @@ struct dinode {
 	uint8_t nlink;		// Number of links to inode in file system
 	uint64_t size;		// Size of file (bytes)
 
+	uint16_t perms;         // Permissions
+	uint32_t uid;
+	uint32_t gid;
+
 	mlfs_time_t atime;
 	mlfs_time_t ctime;
 	mlfs_time_t mtime;
@@ -202,6 +206,10 @@ struct inode {
 	uint8_t itype;      // File type
 	uint8_t nlink;      // Number of links to inode in file system
 	uint64_t size;      // Size of file (bytes)
+
+	uint16_t perms;     // Permissions
+	uint32_t uid;
+	uint32_t gid;
 
 	mlfs_time_t atime;
 	mlfs_time_t ctime;
