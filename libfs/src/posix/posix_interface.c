@@ -50,7 +50,7 @@ static int isdirempty(struct inode *dp)
 }
 #endif
 
-int mlfs_posix_open(char *path, int flags, uint16_t mode)
+int mlfs_posix_open(char *path, int flags, mode_t mode)
 {
 	struct file *f;
 	struct inode *inode;
@@ -62,7 +62,7 @@ int mlfs_posix_open(char *path, int flags, uint16_t mode)
 		if (flags & O_DIRECTORY)
 			panic("O_DIRECTORY cannot be set with O_CREAT\n");
 
-		inode = mlfs_object_create(path, T_FILE);
+		inode = mlfs_object_create(path, T_FILE, mode);
 
 		mlfs_debug("create file %s - inum %u\n", path, inode->inum);
 
@@ -284,7 +284,7 @@ int mlfs_posix_mkdir(char *path, mode_t mode)
 	start_log_tx();
 
 	// return inode with holding ilock.
-	inode = mlfs_object_create(path, T_DIR);
+	inode = mlfs_object_create(path, T_DIR, mode);
 
 	if (!inode) {
 		abort_log_tx();

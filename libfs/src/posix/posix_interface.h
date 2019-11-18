@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-int mlfs_posix_open(char *path, int flags, unsigned short mode);
+int mlfs_posix_open(char *path, int flags, mode_t mode);
 int mlfs_posix_access(char *pathname, int mode);
 int mlfs_posix_creat(char *path, uint16_t mode);
 int mlfs_posix_read(int fd, void *buf, int count);

@@ -12,6 +12,8 @@
 #include "concurrency/synchronization.h"
 
 #include <pthread.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 struct open_file_table g_fd_table;
 
@@ -328,8 +330,14 @@ int mlfs_file_write(struct file *f, uint8_t *buf, size_t n)
 	return -1;
 }
 
+static mode_t get_umask() {
+  mode_t mask = umask(0);
+  umask(mask);
+  return mask;
+}
+
 //supporting type : T_FILE, T_DIR
-struct inode *mlfs_object_create(char *path, unsigned short type)
+struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 {
 	offset_t offset;
 	struct inode *inode = NULL, *parent_inode = NULL;
@@ -374,6 +382,12 @@ struct inode *mlfs_object_create(char *path, unsigned short type)
 
 	inode->itype = type;
 	inode->nlink = 1;
+	inode->uid = geteuid();
+	inode->gid = parent_inode->gid;
+	mode_t mask = get_umask();
+	inode->perms = mode & ~mask;
+	
+	
 
 	add_to_loghdr(L_TYPE_INODE_CREATE, inode, 0, 
 			sizeof(struct dinode), NULL, 0);
