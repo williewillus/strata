@@ -165,8 +165,10 @@ struct dinode {
 
 	addr_t l1_addrs[NDIRECT+1];	//direct block addresses: 64 B
 	addr_t l2_addrs[NDIRECT+1];	
-	addr_t l3_addrs[NDIRECT+1];	
-}; // 256 bytes.
+	addr_t l3_addrs[NDIRECT+1];
+
+        char padding[240];
+}; // 512 bytes.
 
 #define setup_ondisk_inode(dip, dev, type) \
 	memset(dip, 0, sizeof(struct dinode)); \
