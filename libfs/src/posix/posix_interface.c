@@ -5,6 +5,7 @@
 //
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 
 #include "global/global.h"
@@ -89,6 +90,41 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 				commit_log_tx();
 				return -EACCES;
 			}
+		}
+
+		int good = 0;
+		if (inode->uid == geteuid()) {
+		  // check user bits
+		  if ((flags & O_RDONLY) || (flags & O_RDWR)) {
+		    good |= inode->perms & S_IRUSR;
+		  } else if ((flags & O_WRONLY) || (flags & O_RDWR)) {
+		    good |= inode->perms & S_IWUSR;
+		  } else {
+		    mlfs_info("%s\n", "missed a flag?");
+		  }
+		} else if (inode->gid == getegid()) {
+		  // check group bits
+		  if ((flags & O_RDONLY) || (flags & O_RDWR)) {
+		    good |= inode->perms & S_IRGRP;
+		  } else if ((flags & O_WRONLY) || (flags & O_RDWR)) {
+		    good |= inode->perms & S_IWGRP;
+		  } else {
+		    mlfs_info("%s\n", "missed a flag?");
+		  }
+		} else {
+  		  // check other bits
+		  if ((flags & O_RDONLY) || (flags & O_RDWR)) {
+		    good |= inode->perms & S_IROTH;
+		  } else if ((flags & O_WRONLY) || (flags & O_RDWR)) {
+		    good |= inode->perms & S_IWOTH;
+		  } else {
+		    mlfs_info("%s\n", "missed a flag?");
+		  }
+		}
+
+		if (!good) {
+		  commit_log_tx();
+		  return -EACCES;
 		}
 	}
 
