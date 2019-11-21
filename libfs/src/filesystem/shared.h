@@ -240,6 +240,7 @@ struct inode {
 
 		addr_t addrs[NDIRECT+1];    // Data block addresses
 	} l3;
+        char padding[240];
 
 	// This must be identical to struct dinode
 	/////////////////////////////////////////////////////////////////
