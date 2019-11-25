@@ -92,31 +92,38 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 			}
 		}
 
+		int accmode = flags & O_ACCMODE;
 		int good = 0;
 		if (inode->uid == geteuid()) {
 		  // check user bits
-		  if ((flags & O_RDONLY) || (flags & O_RDWR)) {
-		    good |= inode->perms & S_IRUSR;
-		  } else if ((flags & O_WRONLY) || (flags & O_RDWR)) {
-		    good |= inode->perms & S_IWUSR;
+		  if (accmode == O_RDWR) {
+		    good = (inode->perms & S_IRUSR) && (inode->perms & S_IWUSR);
+		  } else if (accmode == O_RDONLY) {
+		    good = inode->perms & S_IRUSR;
+		  } else if (accmode == O_WRONLY) {
+		    good = inode->perms & S_IWUSR;
 		  } else {
 		    mlfs_info("%s\n", "missed a flag?");
 		  }
 		} else if (inode->gid == getegid()) {
 		  // check group bits
-		  if ((flags & O_RDONLY) || (flags & O_RDWR)) {
-		    good |= inode->perms & S_IRGRP;
-		  } else if ((flags & O_WRONLY) || (flags & O_RDWR)) {
-		    good |= inode->perms & S_IWGRP;
+		  if (accmode == O_RDWR) {
+		    good = (inode->perms & S_IRGRP) && (inode->perms & S_IWGRP);
+		  } else if (accmode == O_RDONLY) {
+		    good = inode->perms & S_IRGRP;
+		  } else if (accmode == O_WRONLY) {
+		    good = inode->perms & S_IWGRP;
 		  } else {
 		    mlfs_info("%s\n", "missed a flag?");
 		  }
 		} else {
   		  // check other bits
-		  if ((flags & O_RDONLY) || (flags & O_RDWR)) {
-		    good |= inode->perms & S_IROTH;
-		  } else if ((flags & O_WRONLY) || (flags & O_RDWR)) {
-		    good |= inode->perms & S_IWOTH;
+	          if (accmode == O_RDWR) {
+		    good = (inode->perms & S_IROTH) && (inode->perms & S_IWOTH);
+		  } else if (accmode == O_RDONLY) {
+		    good = inode->perms & S_IROTH;
+		  } else if (accmode == O_WRONLY) {
+		    good = inode->perms & S_IWOTH;
 		  } else {
 		    mlfs_info("%s\n", "missed a flag?");
 		  }
