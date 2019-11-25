@@ -1,0 +1,16 @@
+append_test
+dir_test
+falloc_test
+file_basic
+fork_io
+ftrunc_test
+fwrite_fread
+iotest
+iotest.normal
+lock_perf
+lock_test
+many_files_test
+partial_update_test
+readdir_test
+small_io
+time_stat.o
