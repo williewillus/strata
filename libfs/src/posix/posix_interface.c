@@ -618,6 +618,60 @@ int mlfs_posix_fcntl(int fd, int cmd, void *arg)
 	return 0;
 }
 
+/* Need to test this!!*/
+int mlfs_posix_chmod(char* path, mode_t mode)
+{
+	/*get inode*/
+	struct inode *inode;
+	if ((inode = namei(path)) == NULL) {
+		commit_log_tx();
+		return -ENOENT;
+	}
+	/*check permission*/
+	/*hacky method. can copy perm checking from open to make it less hacky*/
+	int fd = mlfs_posix_open(path,O_WRONLY,mode);
+	if(fd == -1)
+	{
+		commit_log_tx();
+		return -ENOENT;
+	}
+	/*get umask*/
+	mode_t mask = umask(-1);
+	umask(mask);
+	/*update inode*/
+	inode->perms = mode&~mask;
+	/*updte log*/
+	add_to_loghdr(L_TYPE_INODE_UPDATE, inode, -1, sizeof(struct dinode), NULL, 0);
+	mlfs_posix_close(fd);
+	return 0;
+}
+
+
+/* currently negatives treated as not changing group
+ * should probably add checks and errors for invalid groups/users
+ */
+int mlfs_posix_chown(char* path, uint32_t owner, uint32_t group)
+{
+	/*get inode*/
+	struct inode *inode;
+	if ((inode = namei(path))==NULL){
+		commit_log_tx();
+		return -ENOENT;
+	}
+	/*checking perms same way as above*/
+	int fd = mlfs_posix_open(path,O_WRONLY,0);//zero b/c shouldnt be used
+	if(fd == -1)
+	{
+		commit_log_tx();
+		return -ENOENT;
+	}
+	inode->uid = owner;
+	if(group >= 0)
+		inode->gid = group;
+	mlfs_posix_close(fd);
+	return 0;
+}
+
 #ifdef __cplusplus
 }
 #endif
