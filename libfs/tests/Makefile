@@ -1,6 +1,6 @@
 CC = gcc -std=c99
 #CC = c99
-EXE = iotest file_basic small_io falloc_test ftrunc_test lock_test lock_perf dir_test many_files_test fork_io readdir_test append_test fwrite_fread partial_update_test perms_open
+EXE = iotest file_basic small_io falloc_test ftrunc_test lock_test lock_perf dir_test many_files_test fork_io readdir_test append_test fwrite_fread partial_update_test perms_open perms_chmod
 #$(info $(EXE))
 
 CUR_DIR = $(shell pwd)
@@ -15,7 +15,7 @@ DAX_OBJ = ../build/storage/storage_dax.o
 DPDK_VER := 16.07.2
 DPDK_DIR := $(abspath $(CURDIR)/../lib/dpdk-$(DPDK_VER)/x86_64-native-linuxapp-gcc)
 
-CFLAGS=-I $(DPDK_DIR)/include -I$(INCLUDES)
+CFLAGS=-I $(DPDK_DIR)/include -I$(INCLUDES) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
 
 LDFLAGS = -Wl,-rpath=$(abspath $(LIBFS_DIR)) \
 		  -Wl,-rpath=$(abspath $(NVML_DIR)) \
@@ -37,6 +37,9 @@ file_basic: file_basic.c
 
 perms_open: perms_open.c
 	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(LDFLAGS)
+
+perms_chmod: perms_chmod.c
+	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(CFLAGS) $(LDFLAGS)
 
 small_io: small_io.c
 	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(LDFLAGS)

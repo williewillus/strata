@@ -12,6 +12,7 @@ lock_test
 many_files_test
 partial_update_test
 perms_open
+perms_chmod
 readdir_test
 small_io
 time_stat.o
