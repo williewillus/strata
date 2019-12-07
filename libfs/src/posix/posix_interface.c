@@ -646,6 +646,10 @@ int mlfs_posix_chmod(char* path, mode_t mode)
 	return 0;
 }
 
+int mlfs_posix_fchmod(int fd, mode_t mode) {
+  return 0;
+}
+
 
 /* currently negatives treated as not changing group
  * should probably add checks and errors for invalid groups/users
@@ -670,6 +674,10 @@ int mlfs_posix_chown(char* path, uint32_t owner, uint32_t group)
 		inode->gid = group;
 	mlfs_posix_close(fd);
 	return 0;
+}
+
+int mlfs_posix_fchown(int fd, uid_t owner, gid_t group) {
+  return 0;
 }
 
 #ifdef __cplusplus
