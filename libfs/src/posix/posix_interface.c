@@ -640,42 +640,79 @@ int mlfs_posix_fcntl(int fd, int cmd, void *arg)
 	return 0;
 }
 
-/* Need to test this!!*/
-int mlfs_posix_chmod(const char* path, mode_t mode)
-{
-	/*get inode*/
-	struct inode *inode;
-	if ((inode = namei(path)) == NULL) {
-		commit_log_tx();
-		return -ENOENT;
-	}
-	/*check permission*/
-	/*hacky method. can copy perm checking from open to make it less hacky*/
-	int fd = mlfs_posix_open(path,O_WRONLY,mode);
-	if(fd == -1)
-	{
-		commit_log_tx();
-		return -ENOENT;
-	}
-	/*get umask*/
-	mode_t mask = umask(-1);
-	umask(mask);
-	/*update inode*/
-	inode->perms = mode&~mask;
-	/*updte log*/
-	add_to_loghdr(L_TYPE_INODE_UPDATE, inode, -1, sizeof(struct dinode), NULL, 0);
-	mlfs_posix_close(fd);
-	return 0;
-}
 
-int mlfs_posix_fchmod(int fd, mode_t mode) {
+/* Performs preliminary permission checks as defined in chmod(2).
+   Returns 0 on success, -errno on failure that can be propagated */
+static int chmod_prelim_check(struct inode *inode, mode_t mode) {
+  if ((mode & S_ISUID) || (mode & S_ISGID) || (mode & S_ISVTX)) {
+    mlfs_info("%s: chmod of setuid, setgid, sticky bits not supported\n", __func__);
+    return -EINVAL;
+  }
+
+  /* FIXME: check if caller doesn't have CAP_FOWNER, instead of geteuid() != root */
+  if (geteuid() != 0 && inode->uid != geteuid()) {
+    return -EPERM;
+  }
+
   return 0;
 }
 
-/* Performs preliminary permission checks for calls to chown, as defined in chown(2).
-   Returns 0 on success, -errno on failure that can be propagated
- */
+int mlfs_posix_chmod(const char* path, mode_t mode)
+{
+  struct inode *inode;
+
+  start_log_tx();
+  if ((inode = namei(path)) == NULL) {
+    abort_log_tx();
+    return -ENOENT;
+  }
+
+  int prelim = chmod_prelim_check(inode, mode);
+  if (prelim != 0) {
+    iput(inode);
+    abort_log_tx();
+    return prelim;
+  }
+
+  /* XXX: Does inode need to be locked? */
+  inode->perms = mode;
+
+  iupdate(inode);
+  commit_log_tx();
+  iput(inode);
+  return 0;
+}
+
+int mlfs_posix_fchmod(int fd, mode_t mode) {
+  struct file *f = &g_fd_table.open_files[fd];
+  mlfs_assert(f);
+  pthread_rwlock_wrlock(&f->rwlock);
+
+  if (f->ref == 0) {
+    pthread_rwlock_unlock(&f->rwlock);
+    return -EBADF;
+  }
+
+  int precheck = chmod_prelim_check(f->ip, mode);
+  if (precheck != 0) {
+    pthread_rwlock_unlock(&f->rwlock);
+    return precheck;
+  }
+
+  start_log_tx();
+  f->ip->perms = mode;
+  iupdate(f->ip);
+  commit_log_tx();
+
+  pthread_rwlock_unlock(&f->rwlock);
+  return 0;
+}
+
+/* Performs preliminary permission checks as defined in chown(2).
+   Returns 0 on success, -errno on failure that can be propagated */
 static int chown_prelim_check(uid_t owner, gid_t group) {
+  /* FIXME: Use CAP_CHOWN instead of checking geteuid != root */
+  
   if (owner != -1 && geteuid() != 0) {
     /* only privileged user may change owner */
     return -EPERM;
@@ -718,8 +755,6 @@ static int chown_prelim_check(uid_t owner, gid_t group) {
   return 0;
 }
 
-/* should probably add checks and errors for invalid groups/users
- */
 int mlfs_posix_chown(const char* path, uint32_t owner, uint32_t group)
 {
   int precheck = chown_prelim_check(owner, group);
@@ -739,6 +774,7 @@ int mlfs_posix_chown(const char* path, uint32_t owner, uint32_t group)
   if(group >= 0)
     inode->gid = group;
   
+  iupdate(inode);
   commit_log_tx();
   iput(inode);
   return 0;
@@ -764,6 +800,7 @@ int mlfs_posix_fchown(int fd, uid_t owner, gid_t group) {
     f->ip->uid = owner;
   if(group >= 0)
     f->ip->gid = group;
+  iupdate(f->ip);
   commit_log_tx();
 
   pthread_rwlock_unlock(&f->rwlock);
