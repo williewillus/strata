@@ -567,7 +567,7 @@ static int shim_do_chown(char *path, uid_t owner, gid_t group, int *result) {
 
 static int shim_do_fchown(int fd, uid_t owner, gid_t group, int *result) {
   if (check_mlfs_fd(fd)) {
-    *result = mlfs_posix_fchown(get_mlfs_fd(fd, owner, group);
+    *result = mlfs_posix_fchown(get_mlfs_fd(fd), owner, group);
     syscall_trace(__func__, *result, 3, fd, owner, group);
     return 0;
   } else {
