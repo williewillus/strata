@@ -373,7 +373,7 @@ int dir_change_entry(struct inode *dir_inode, char *oldname, char *newname)
 	return ret;
 }
 
-int dir_remove_entry(struct inode *dir_inode, char *name, uint32_t inum)
+int dir_remove_entry(struct inode *dir_inode, const char *name, uint32_t inum)
 {
 	offset_t off = 0;
 	struct mlfs_dirent *de;

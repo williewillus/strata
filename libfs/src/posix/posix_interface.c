@@ -188,20 +188,33 @@ int mlfs_posix_open(const char *path, int flags, mode_t mode)
 
 int mlfs_posix_access(const char *pathname, int mode)
 {
-	struct inode *inode;
-
-	if (mode != F_OK)
-		panic("does not support other than F_OK\n");
-
-	inode = namei(pathname);
+	struct inode *inode = namei(pathname);
 
 	if (!inode) {
 		return -ENOENT;
 	}
 
+	if (mode == F_OK) {
+	  return 0;
+	}
+
+	uid_t uid = getuid();
+	gid_t gid = getgid();
+
+	int good = 1;
+	if ((mode & R_OK) != 0) {
+	  good = good && permission_check(inode, uid, gid, PC_READ);
+	}
+	if ((mode & W_OK) != 0) {
+	  good = good && permission_check(inode, uid, gid, PC_WRITE);
+	}
+	if ((mode & X_OK) != 0) {
+	  good = good && permission_check(inode, uid, gid, PC_EXECUTE);
+	}
+
 	iput(inode);
 
-	return 0;
+	return good ? 0 : -EACCES;
 }
 
 int mlfs_posix_creat(const char *path, uint16_t mode)
@@ -659,33 +672,101 @@ int mlfs_posix_fchmod(int fd, mode_t mode) {
   return 0;
 }
 
+/* Performs preliminary permission checks for calls to chown, as defined in chown(2).
+   Returns 0 on success, -errno on failure that can be propagated
+ */
+static int chown_prelim_check(uid_t owner, gid_t group) {
+  if (owner != -1 && geteuid() != 0) {
+    /* only privileged user may change owner */
+    return -EPERM;
+  }
 
-/* currently negatives treated as not changing group
- * should probably add checks and errors for invalid groups/users
+  if (group != -1 && geteuid() != 0) {
+    int secondary_grp_count = getgroups(0, NULL);
+    if (secondary_grp_count == -1) {
+      return -errno;
+    }
+    gid_t *secondary_grp_list = calloc(secondary_grp_count, sizeof(gid_t));
+    if (!secondary_grp_list) {
+      return -ENOMEM;
+    }
+
+    if (getgroups(secondary_grp_count, secondary_grp_list) == -1) {
+      free(secondary_grp_list);
+      return -errno;
+    }
+
+    /* may only change to a group the user is a part of */
+    if (group != getegid()) {
+      int found_group = 0;
+      for (int i = 0; i < secondary_grp_count; i++) {
+	if (secondary_grp_list[i] == group) {
+	  found_group = 1;
+	  break;
+	}
+      }
+      
+      if (!found_group) {
+	free(secondary_grp_list);
+	return -EPERM;
+      }
+    }
+
+    free(secondary_grp_list);
+  }
+
+  return 0;
+}
+
+/* should probably add checks and errors for invalid groups/users
  */
 int mlfs_posix_chown(const char* path, uint32_t owner, uint32_t group)
 {
-	/*get inode*/
-	struct inode *inode;
-	if ((inode = namei(path))==NULL){
-		commit_log_tx();
-		return -ENOENT;
-	}
-	/*checking perms same way as above*/
-	int fd = mlfs_posix_open(path,O_WRONLY,0);//zero b/c shouldnt be used
-	if(fd == -1)
-	{
-		commit_log_tx();
-		return -ENOENT;
-	}
-	inode->uid = owner;
-	if(group >= 0)
-		inode->gid = group;
-	mlfs_posix_close(fd);
-	return 0;
+  int precheck = chown_prelim_check(owner, group);
+  if (precheck != 0)
+    return precheck;
+
+  start_log_tx();
+  struct inode *inode;
+  if ((inode = namei(path))==NULL){
+    abort_log_tx();
+    return -ENOENT;
+  }
+	
+  /* XXX: Does inode need to be locked? */
+  if (owner >= 0)
+    inode->uid = owner;
+  if(group >= 0)
+    inode->gid = group;
+  
+  commit_log_tx();
+  iput(inode);
+  return 0;
 }
 
 int mlfs_posix_fchown(int fd, uid_t owner, gid_t group) {
+  int precheck = chown_prelim_check(owner, group);
+  if (precheck != 0) {
+    return precheck;
+  }
+
+  struct file *f = &g_fd_table.open_files[fd];
+  mlfs_assert(f);
+  pthread_rwlock_wrlock(&f->rwlock);
+
+  if (f->ref == 0) {
+    pthread_rwlock_unlock(&f->rwlock);
+    return -EBADF;
+  }
+
+  start_log_tx();
+  if (owner >= 0)
+    f->ip->uid = owner;
+  if(group >= 0)
+    f->ip->gid = group;
+  commit_log_tx();
+
+  pthread_rwlock_unlock(&f->rwlock);
   return 0;
 }
 
