@@ -313,7 +313,7 @@ void dbg_check_inode(void *data);
 void dbg_check_dir(void *data);
 struct inode* dbg_dir_lookup(struct inode *dir_inode,
 		char *name, uint32_t *poff);
-void dbg_path_walk(char *path);
+void dbg_path_walk(const char *path);
 
 extern uint8_t g_ssd_dev;
 extern uint8_t g_log_dev;

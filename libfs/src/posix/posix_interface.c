@@ -51,6 +51,36 @@ static int isdirempty(struct inode *dp)
 }
 #endif
 
+enum permcheck_type {
+  PC_READ,
+  PC_WRITE,
+  PC_EXECUTE
+};
+
+static int permission_check(struct inode *inode, uid_t check_uid, gid_t check_gid, enum permcheck_type perm)
+{
+  if (inode->uid == check_uid) {
+    switch (perm) {
+    case PC_READ: return (inode->perms & S_IRUSR) != 0;
+    case PC_WRITE: return (inode->perms & S_IWUSR) != 0;
+    case PC_EXECUTE: return (inode->perms & S_IXUSR) != 0;
+    }
+  } else if (inode->gid == check_gid) {
+    switch (perm) {
+    case PC_READ: return (inode->perms & S_IRGRP) != 0;
+    case PC_WRITE: return (inode->perms & S_IWGRP) != 0;
+    case PC_EXECUTE: return (inode->perms & S_IXGRP) != 0;
+    }
+  } else {
+    switch (perm) {
+    case PC_READ: return (inode->perms & S_IROTH) != 0;
+    case PC_WRITE: return (inode->perms & S_IWOTH) != 0;
+    case PC_EXECUTE: return (inode->perms & S_IXOTH) != 0;
+    }
+  }
+  return 0;
+}
+
 int mlfs_posix_open(const char *path, int flags, mode_t mode)
 {
 	struct file *f;
@@ -92,41 +122,20 @@ int mlfs_posix_open(const char *path, int flags, mode_t mode)
 			}
 		}
 
-		int accmode = flags & O_ACCMODE;
+	        uid_t uid = geteuid();
+		gid_t gid = getegid();
 		int good = 0;
-		if (inode->uid == geteuid()) {
-		  // check user bits
-		  if (accmode == O_RDWR) {
-		    good = (inode->perms & S_IRUSR) && (inode->perms & S_IWUSR);
-		  } else if (accmode == O_RDONLY) {
-		    good = inode->perms & S_IRUSR;
-		  } else if (accmode == O_WRONLY) {
-		    good = inode->perms & S_IWUSR;
-		  } else {
-		    mlfs_info("%s\n", "missed a flag?");
-		  }
-		} else if (inode->gid == getegid()) {
-		  // check group bits
-		  if (accmode == O_RDWR) {
-		    good = (inode->perms & S_IRGRP) && (inode->perms & S_IWGRP);
-		  } else if (accmode == O_RDONLY) {
-		    good = inode->perms & S_IRGRP;
-		  } else if (accmode == O_WRONLY) {
-		    good = inode->perms & S_IWGRP;
-		  } else {
-		    mlfs_info("%s\n", "missed a flag?");
-		  }
-		} else {
-  		  // check other bits
-	          if (accmode == O_RDWR) {
-		    good = (inode->perms & S_IROTH) && (inode->perms & S_IWOTH);
-		  } else if (accmode == O_RDONLY) {
-		    good = inode->perms & S_IROTH;
-		  } else if (accmode == O_WRONLY) {
-		    good = inode->perms & S_IWOTH;
-		  } else {
-		    mlfs_info("%s\n", "missed a flag?");
-		  }
+		switch (flags & O_ACCMODE) {
+		case O_RDWR:
+		  good = permission_check(inode, uid, gid, PC_READ) && permission_check(inode, uid, gid, PC_WRITE);
+		  break;
+		case O_RDONLY:
+		  good = permission_check(inode, uid, gid, PC_READ);
+		  break;
+		case O_WRONLY:
+		  good = permission_check(inode, uid, gid, PC_WRITE);
+		  break;
+		default: panic("Unknown accmode flag\n");
 		}
 
 		if (!good) {
@@ -177,7 +186,7 @@ int mlfs_posix_open(const char *path, int flags, mode_t mode)
 	return SET_MLFS_FD(fd);
 }
 
-int mlfs_posix_access(char *pathname, int mode)
+int mlfs_posix_access(const char *pathname, int mode)
 {
 	struct inode *inode;
 
@@ -195,7 +204,7 @@ int mlfs_posix_access(char *pathname, int mode)
 	return 0;
 }
 
-int mlfs_posix_creat(char *path, uint16_t mode)
+int mlfs_posix_creat(const char *path, uint16_t mode)
 {
 	return mlfs_posix_open(path, O_CREAT|O_RDWR, mode);
 }
@@ -319,7 +328,7 @@ int mlfs_posix_close(int fd)
 	return mlfs_file_close(f);
 }
 
-int mlfs_posix_mkdir(char *path, mode_t mode)
+int mlfs_posix_mkdir(const char *path, mode_t mode)
 {
 	int ret = 0;
 	struct inode *inode;
@@ -339,7 +348,7 @@ exit_mkdir:
 	return ret;
 }
 
-int mlfs_posix_rmdir(char *path)
+int mlfs_posix_rmdir(const char *path)
 {
 	int ret = 0;
 	struct inode *dir_inode;
@@ -371,7 +380,7 @@ int mlfs_posix_stat(const char *filename, struct stat *stat_buf)
 {
 	struct inode *inode;
 
-	inode = namei((char *)filename);
+	inode = namei(filename);
 
 	if (!inode) {
 		return -ENOENT;
@@ -486,7 +495,7 @@ int mlfs_posix_truncate(const char *filename, offset_t length)
 {
 	struct inode *inode;
 
-	inode = namei((char *)filename);
+	inode = namei(filename);
 
 	if (!inode) {
 		return -ENOENT;
@@ -523,14 +532,14 @@ int mlfs_posix_ftruncate(int fd, offset_t length)
 	return 0;
 }
 
-int mlfs_posix_rename(char *oldpath, char *newpath)
+int mlfs_posix_rename(const char *oldpath, const char *newpath)
 {
 	int ret = 0;
 	struct inode *old_dir_inode, *new_dir_inode;
 	char old_file_name[DIRSIZ], new_file_name[DIRSIZ];
 
-	old_dir_inode = nameiparent((char *)oldpath, old_file_name);
-	new_dir_inode = nameiparent((char *)newpath, new_file_name);
+	old_dir_inode = nameiparent(oldpath, old_file_name);
+	new_dir_inode = nameiparent(newpath, new_file_name);
 
 	mlfs_assert(old_dir_inode);
 	mlfs_assert(new_dir_inode);
