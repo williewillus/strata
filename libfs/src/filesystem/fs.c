@@ -941,8 +941,8 @@ void stati(struct inode *ip, struct stat *st)
 	st->st_ino = ip->inum;
 	st->st_mode = 0;
 	st->st_nlink = ip->nlink;
-	st->st_uid = 0;
-	st->st_gid = 0;
+	st->st_uid = ip->uid;
+	st->st_gid = ip->gid;
 	st->st_rdev = 0;
 	st->st_size = ip->size;
 	st->st_blksize = g_block_size_bytes;
