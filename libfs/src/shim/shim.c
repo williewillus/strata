@@ -85,7 +85,7 @@ static int is_mlfs_path(const char* pathname, char *path_buf) {
   return strncmp(path_buf, MLFS_PREFIX, 5) == 0;
 }
 
-int shim_do_open(char *filename, int flags, mode_t mode, int* result)
+int shim_do_open(const char *filename, int flags, mode_t mode, int* result)
 {
   int ret;
   char path_buf[PATH_BUF_SIZE];
@@ -122,7 +122,7 @@ int shim_do_openat(int dfd, const char *filename, int flags, mode_t mode, int* r
       exit(-1);
     }
 
-    ret = mlfs_posix_open((char *)filename, flags, mode);
+    ret = mlfs_posix_open(filename, flags, mode);
 
     if (!check_mlfs_fd(ret)) {
       printf("incorrect fd %d: file %s\n", ret, filename);
@@ -135,7 +135,7 @@ int shim_do_openat(int dfd, const char *filename, int flags, mode_t mode, int* r
   }
 }
 
-int shim_do_creat(char *filename, mode_t mode, int* result)
+int shim_do_creat(const char *filename, mode_t mode, int* result)
 {
   int ret;
   char path_buf[PATH_BUF_SIZE];
@@ -252,7 +252,7 @@ int shim_do_lseek(int fd, off_t offset, int origin, int* result)
 
 }
 
-int shim_do_mkdir(char *path, mode_t mode, int* result)
+int shim_do_mkdir(const char *path, mode_t mode, int* result)
 {
   int ret;
   char path_buf[PATH_BUF_SIZE];
@@ -278,14 +278,14 @@ int shim_do_rmdir(const char *path, int* result)
   if (!is_mlfs_path(path, path_buf)){
     return 1;
   } else {
-    ret = mlfs_posix_rmdir((char *)path);
+    ret = mlfs_posix_rmdir(path);
     *result = ret;
     return 0;
   }
 
 }
 
-int shim_do_rename(char *oldname, char *newname, int* result)
+int shim_do_rename(const char *oldname, const char *newname, int* result)
 {
   int ret;
   char path_buf[PATH_BUF_SIZE];
@@ -605,18 +605,18 @@ hook(long syscall_number,
      long arg4, long arg5,
      long *result) {
   switch (syscall_number) {
-    case SYS_open: return shim_do_open((char*)arg0, (int)arg1, (mode_t)arg2, (int*)result);
+    case SYS_open: return shim_do_open((const char*)arg0, (int)arg1, (mode_t)arg2, (int*)result);
     case SYS_openat: return shim_do_openat((int)arg0, (const char*)arg1, (int)arg2, (mode_t)arg3, (int*)result);
-    case SYS_creat: return shim_do_creat((char*)arg0, (mode_t)arg1, (int*)result);
+    case SYS_creat: return shim_do_creat((const char*)arg0, (mode_t)arg1, (int*)result);
     case SYS_read: return shim_do_read((int)arg0, (void*)arg1, (size_t)arg2, (size_t*)result);
     case SYS_pread64: return shim_do_pread64((int)arg0, (void*)arg1, (size_t)arg2, (loff_t)arg3, (size_t*)result);
     case SYS_write: return shim_do_write((int)arg0, (void*)arg1, (size_t)arg2, (size_t*)result);
     case SYS_pwrite64: return shim_do_pwrite64((int)arg0, (void*)arg1, (size_t)arg2, (loff_t)arg3, (size_t*)result);
     case SYS_close: return shim_do_close((int)arg0, (int*)result);
     case SYS_lseek: return shim_do_lseek((int)arg0, (off_t)arg1, (int)arg2, (int*)result);
-    case SYS_mkdir: return shim_do_mkdir((char*)arg0, (mode_t)arg1, (int*)result);
+    case SYS_mkdir: return shim_do_mkdir((const char*)arg0, (mode_t)arg1, (int*)result);
     case SYS_rmdir: return shim_do_rmdir((const char*)arg0, (int*)result);
-    case SYS_rename: return shim_do_rename((char*)arg0, (char*)arg1, (int*)result);
+    case SYS_rename: return shim_do_rename((const char*)arg0, (const char*)arg1, (int*)result);
     case SYS_fallocate: return shim_do_fallocate((int)arg0, (int)arg1, (off_t)arg2, (off_t)arg3, (int*)result);
     case SYS_stat: return shim_do_stat((const char*)arg0, (struct stat*)arg1, (int*)result);
     case SYS_lstat: return shim_do_lstat((const char*)arg0, (struct stat*)arg1, (int*)result);
