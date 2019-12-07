@@ -933,6 +933,89 @@ int itrunc(struct inode *ip, offset_t length)
 	return ret;
 }
 
+/* Performs preliminary permission checks as defined in chown(2).
+   Returns 0 on success, -errno on failure that can be propagated */
+static int chown_perm_check(uid_t owner, gid_t group) {
+  /* FIXME: Use CAP_CHOWN instead of checking geteuid != root */
+  
+  if (owner != -1 && geteuid() != 0) {
+    /* only privileged user may change owner */
+    return -EPERM;
+  }
+
+  if (group != -1 && geteuid() != 0) {
+    int secondary_grp_count = getgroups(0, NULL);
+    if (secondary_grp_count == -1) {
+      return -errno;
+    }
+    gid_t *secondary_grp_list = calloc(secondary_grp_count, sizeof(gid_t));
+    if (!secondary_grp_list) {
+      return -ENOMEM;
+    }
+
+    if (getgroups(secondary_grp_count, secondary_grp_list) == -1) {
+      free(secondary_grp_list);
+      return -errno;
+    }
+
+    /* may only change to a group the user is a part of */
+    if (group != getegid()) {
+      int found_group = 0;
+      for (int i = 0; i < secondary_grp_count; i++) {
+	if (secondary_grp_list[i] == group) {
+	  found_group = 1;
+	  break;
+	}
+      }
+      
+      if (!found_group) {
+	free(secondary_grp_list);
+	return -EPERM;
+      }
+    }
+
+    free(secondary_grp_list);
+  }
+
+  return 0;
+}
+
+/* Call in transaction */
+int ichown(struct inode *ip, uid_t owner, gid_t group) {
+  int precheck = chown_perm_check(owner, group);
+  if (precheck != 0)
+    return precheck;
+
+  pthread_mutex_lock(&ip->i_mutex);
+  if (owner >= 0)
+    ip->uid = owner;
+  if(group >= 0)
+    ip->gid = group;
+  iupdate(ip);
+  pthread_mutex_unlock(&ip->i_mutex);
+
+  return 0;
+}
+
+/* Call in transaction */
+int ichmod(struct inode *ip, mode_t mode) {
+  if ((mode & S_ISUID) || (mode & S_ISGID) || (mode & S_ISVTX)) {
+    mlfs_info("%s: chmod of setuid, setgid, sticky bits not supported\n", __func__);
+    return -EINVAL;
+  }
+
+  /* FIXME: check if caller doesn't have CAP_FOWNER, instead of geteuid() != root */
+  if (geteuid() != 0 && ip->uid != geteuid()) {
+    return -EPERM;
+  }
+
+  pthread_mutex_lock(&ip->i_mutex);
+  ip->perms = mode;
+  iupdate(ip);
+  pthread_mutex_unlock(&ip->i_mutex);
+  return 0;
+}
+
 void stati(struct inode *ip, struct stat *st)
 {
 	mlfs_assert(ip);

@@ -542,6 +542,8 @@ void iunlock(struct inode*);
 void iunlockput(struct inode*);
 void iupdate(struct inode*);
 int itrunc(struct inode *inode, offset_t length);
+int ichown(struct inode *inode, uid_t owner, gid_t group);
+int ichmod(struct inode *inode, mode_t mode);
 int bmap(struct inode *ip, struct bmap_request *bmap_req);
 
 int dir_check_entry_fast(struct inode *dir_inode);

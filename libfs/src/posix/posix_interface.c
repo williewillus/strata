@@ -640,23 +640,6 @@ int mlfs_posix_fcntl(int fd, int cmd, void *arg)
 	return 0;
 }
 
-
-/* Performs preliminary permission checks as defined in chmod(2).
-   Returns 0 on success, -errno on failure that can be propagated */
-static int chmod_prelim_check(struct inode *inode, mode_t mode) {
-  if ((mode & S_ISUID) || (mode & S_ISGID) || (mode & S_ISVTX)) {
-    mlfs_info("%s: chmod of setuid, setgid, sticky bits not supported\n", __func__);
-    return -EINVAL;
-  }
-
-  /* FIXME: check if caller doesn't have CAP_FOWNER, instead of geteuid() != root */
-  if (geteuid() != 0 && inode->uid != geteuid()) {
-    return -EPERM;
-  }
-
-  return 0;
-}
-
 int mlfs_posix_chmod(const char* path, mode_t mode)
 {
   struct inode *inode;
@@ -667,100 +650,33 @@ int mlfs_posix_chmod(const char* path, mode_t mode)
     return -ENOENT;
   }
 
-  int prelim = chmod_prelim_check(inode, mode);
-  if (prelim != 0) {
-    iput(inode);
-    abort_log_tx();
-    return prelim;
-  }
-
-  /* XXX: Does inode need to be locked? */
-  inode->perms = mode;
-
-  iupdate(inode);
+  int ret = ichmod(inode, mode);
   commit_log_tx();
   iput(inode);
-  return 0;
+  return ret;
 }
 
 int mlfs_posix_fchmod(int fd, mode_t mode) {
   struct file *f = &g_fd_table.open_files[fd];
   mlfs_assert(f);
-  pthread_rwlock_wrlock(&f->rwlock);
 
-  if (f->ref == 0) {
-    pthread_rwlock_unlock(&f->rwlock);
+  pthread_rwlock_rdlock(&f->rwlock);
+  int refcnt = f->ref;
+  pthread_rwlock_unlock(&f->rwlock);
+
+  if (refcnt == 0) {
     return -EBADF;
   }
 
-  int precheck = chmod_prelim_check(f->ip, mode);
-  if (precheck != 0) {
-    pthread_rwlock_unlock(&f->rwlock);
-    return precheck;
-  }
-
   start_log_tx();
-  f->ip->perms = mode;
-  iupdate(f->ip);
+  int ret = ichmod(f->ip, mode);
   commit_log_tx();
 
-  pthread_rwlock_unlock(&f->rwlock);
-  return 0;
-}
-
-/* Performs preliminary permission checks as defined in chown(2).
-   Returns 0 on success, -errno on failure that can be propagated */
-static int chown_prelim_check(uid_t owner, gid_t group) {
-  /* FIXME: Use CAP_CHOWN instead of checking geteuid != root */
-  
-  if (owner != -1 && geteuid() != 0) {
-    /* only privileged user may change owner */
-    return -EPERM;
-  }
-
-  if (group != -1 && geteuid() != 0) {
-    int secondary_grp_count = getgroups(0, NULL);
-    if (secondary_grp_count == -1) {
-      return -errno;
-    }
-    gid_t *secondary_grp_list = calloc(secondary_grp_count, sizeof(gid_t));
-    if (!secondary_grp_list) {
-      return -ENOMEM;
-    }
-
-    if (getgroups(secondary_grp_count, secondary_grp_list) == -1) {
-      free(secondary_grp_list);
-      return -errno;
-    }
-
-    /* may only change to a group the user is a part of */
-    if (group != getegid()) {
-      int found_group = 0;
-      for (int i = 0; i < secondary_grp_count; i++) {
-	if (secondary_grp_list[i] == group) {
-	  found_group = 1;
-	  break;
-	}
-      }
-      
-      if (!found_group) {
-	free(secondary_grp_list);
-	return -EPERM;
-      }
-    }
-
-    free(secondary_grp_list);
-  }
-
-  return 0;
+  return ret;
 }
 
 int mlfs_posix_chown(const char* path, uint32_t owner, uint32_t group)
 {
-  int precheck = chown_prelim_check(owner, group);
-  if (precheck != 0)
-    return precheck;
-
   start_log_tx();
   struct inode *inode;
   if ((inode = namei(path))==NULL){
@@ -768,43 +684,29 @@ int mlfs_posix_chown(const char* path, uint32_t owner, uint32_t group)
     return -ENOENT;
   }
 	
-  /* XXX: Does inode need to be locked? */
-  if (owner >= 0)
-    inode->uid = owner;
-  if(group >= 0)
-    inode->gid = group;
-  
-  iupdate(inode);
+  int ret = ichown(inode, owner, group);
   commit_log_tx();
   iput(inode);
-  return 0;
+  return ret;
 }
 
 int mlfs_posix_fchown(int fd, uid_t owner, gid_t group) {
-  int precheck = chown_prelim_check(owner, group);
-  if (precheck != 0) {
-    return precheck;
-  }
-
   struct file *f = &g_fd_table.open_files[fd];
   mlfs_assert(f);
-  pthread_rwlock_wrlock(&f->rwlock);
 
-  if (f->ref == 0) {
-    pthread_rwlock_unlock(&f->rwlock);
+  pthread_rwlock_rdlock(&f->rwlock);
+  int refcnt = f->ref;
+  pthread_rwlock_unlock(&f->rwlock);
+
+  if (refcnt == 0) {
     return -EBADF;
   }
 
   start_log_tx();
-  if (owner >= 0)
-    f->ip->uid = owner;
-  if(group >= 0)
-    f->ip->gid = group;
-  iupdate(f->ip);
+  int ret = ichown(f->ip, owner, group);
   commit_log_tx();
 
-  pthread_rwlock_unlock(&f->rwlock);
-  return 0;
+  return ret;
 }
 
 #ifdef __cplusplus
