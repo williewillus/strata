@@ -53,6 +53,28 @@ static int test_create_wronly() {
     return 1;
 }
 
+static int test_chown() {
+	int fd = open("mlfs/test_chown", O_WRONLY|O_CREAT, 0200);
+	if (fd < 0) {
+            perror("open with O_CREAT");
+            return 0;
+    	}
+	
+	close(fd);
+	chown("mlfs/test_chown", 12345, -1);
+	
+	int fd2 = open("mlfs/test_chown", O_WRONLY);
+	 if (fd2 != -EACCES) {
+      		printf("Got result %d, expected -EACCES\n", fd2);
+      		return 0;
+    	}	
+
+	return 1;
+
+
+
+}
+
 static int test_create_rdwr() {
     int fd = open("/mlfs/test_create_rdwr", O_RDWR|O_CREAT, 0600);
     if (fd < 0) {
@@ -84,6 +106,7 @@ static int test_create_rdwr() {
 
     return 1;
 }
+
 
 int main(int argc, char ** argv)
 {
