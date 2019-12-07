@@ -77,15 +77,20 @@ static int collapse_name(const char *input, char *_output)
   }
 }
 
+/* Collapses the path into path_buf and checks if it starts with MLFS_PREFIX */
+static int is_mlfs_path(const char* pathname, char *path_buf) {
+  memset(path_buf, 0, PATH_BUF_SIZE);
+  collapse_name(pathname, path_buf);
+
+  return strncmp(path_buf, MLFS_PREFIX, 5) == 0;
+}
+
 int shim_do_open(char *filename, int flags, mode_t mode, int* result)
 {
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(filename, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(filename, path_buf)) {
     return 1;
   } else {
     ret = mlfs_posix_open(filename, flags, mode);
@@ -106,10 +111,7 @@ int shim_do_openat(int dfd, const char *filename, int flags, mode_t mode, int* r
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(filename, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(filename, path_buf)){
     //printf("%s : will not go to libfs\n", path_buf);
     return 1;
   } else {
@@ -138,10 +140,7 @@ int shim_do_creat(char *filename, mode_t mode, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(filename, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(filename, path_buf)){
     return 1;
   } else {
     ret = mlfs_posix_creat(filename, mode);
@@ -253,15 +252,12 @@ int shim_do_lseek(int fd, off_t offset, int origin, int* result)
 
 }
 
-int shim_do_mkdir(void *path, mode_t mode, int* result)
+int shim_do_mkdir(char *path, mode_t mode, int* result)
 {
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name((char *)path, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(path, path_buf)){
     return 1;
   } else {
     //printf("%s: go to mlfs\n", path_buf);
@@ -279,10 +275,7 @@ int shim_do_rmdir(const char *path, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(path, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(path, path_buf)){
     return 1;
   } else {
     ret = mlfs_posix_rmdir((char *)path);
@@ -297,10 +290,7 @@ int shim_do_rename(char *oldname, char *newname, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(oldname, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(oldname, path_buf)){
     return 1;
   } else {
     ret = mlfs_posix_rename(oldname, newname);
@@ -333,10 +323,7 @@ int shim_do_stat(const char *filename, struct stat *statbuf, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(filename, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(filename, path_buf)){
     return 1;
   } else {
     ret = mlfs_posix_stat(filename, statbuf);
@@ -353,10 +340,7 @@ int shim_do_lstat(const char *filename, struct stat *statbuf, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(filename, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(filename, path_buf)){
     return 1;
   } else {
     // Symlink does not implemented yet
@@ -390,10 +374,7 @@ int shim_do_truncate(const char *filename, off_t length, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(filename, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(filename, path_buf)){
     return 1;
   } else {
     ret = mlfs_posix_truncate(filename, length);
@@ -426,10 +407,7 @@ int shim_do_unlink(const char *path, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(path, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(path, path_buf)){
     return 1;
   } else {
     ret = mlfs_posix_unlink(path);
@@ -445,10 +423,7 @@ int shim_do_symlink(const char *target, const char *linkpath, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(target, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(target, path_buf)){
     return 1;
   } else {
     printf("%s\n", target);
@@ -463,10 +438,7 @@ int shim_do_access(const char *pathname, int mode, int* result)
   int ret;
   char path_buf[PATH_BUF_SIZE];
 
-  memset(path_buf, 0, PATH_BUF_SIZE);
-  collapse_name(pathname, path_buf);
-
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
+  if (!is_mlfs_path(pathname, path_buf)){
     return 1;
   } else {
     ret = mlfs_posix_access((char *)pathname, mode);
@@ -581,20 +553,49 @@ int shim_do_getdents64(int fd, struct linux_dirent64 *buf, size_t count, size_t*
 
 }
 
-static int shim_do_chown(const char *path, uid_t owner, gid_t group, int *result) {
-	return 1;
+static int shim_do_chown(char *path, uid_t owner, gid_t group, int *result) {
+  char path_buf[PATH_BUF_SIZE];
+
+  if (!is_mlfs_path(path, path_buf)) {
+    return 1;
+  } else {
+    *result = mlfs_posix_chown(path, owner, group);
+    syscall_trace(__func__, *result, 3, path, owner, group);
+    return 0;
+  }
 }
 
 static int shim_do_fchown(int fd, uid_t owner, gid_t group, int *result) {
-	return 1;
+  if (check_mlfs_fd(fd)) {
+    *result = mlfs_posix_fchown(fd, owner, group);
+    syscall_trace(__func__, *result, 3, fd, owner, group);
+    return 0;
+  } else {
+    return 1;
+  }
 }
 
-static int shim_do_chmod(const char *path, mode_t mode, int *result) {
-	return 1;
+static int shim_do_chmod(char *path, mode_t mode, int *result) {
+  char path_buf[PATH_BUF_SIZE];
+
+  if (!is_mlfs_path(path, path_buf)) {
+    return 1;
+  } else {
+    *result = mlfs_posix_chmod(path, mode);
+    syscall_trace(__func__, *result, 2, path, mode);
+    return 0;
+  }
+  return 1;
 }
 
 static int shim_do_fchmod(int fd, mode_t mode, int *result) {
-	return 1;
+  if (check_mlfs_fd(fd)) {
+    *result = mlfs_posix_fchmod(fd, mode);
+    syscall_trace(__func__, *result, 2, fd, mode);
+    return 0;
+  } else {
+    return 1;
+  }
 }
 
 static int
@@ -613,7 +614,7 @@ hook(long syscall_number,
     case SYS_pwrite64: return shim_do_pwrite64((int)arg0, (void*)arg1, (size_t)arg2, (loff_t)arg3, (size_t*)result);
     case SYS_close: return shim_do_close((int)arg0, (int*)result);
     case SYS_lseek: return shim_do_lseek((int)arg0, (off_t)arg1, (int)arg2, (int*)result);
-    case SYS_mkdir: return shim_do_mkdir((void*)arg0, (mode_t)arg1, (int*)result);
+    case SYS_mkdir: return shim_do_mkdir((char*)arg0, (mode_t)arg1, (int*)result);
     case SYS_rmdir: return shim_do_rmdir((const char*)arg0, (int*)result);
     case SYS_rename: return shim_do_rename((char*)arg0, (char*)arg1, (int*)result);
     case SYS_fallocate: return shim_do_fallocate((int)arg0, (int)arg1, (off_t)arg2, (off_t)arg3, (int*)result);
@@ -633,9 +634,9 @@ hook(long syscall_number,
     case SYS_munmap: return shim_do_munmap((void*)arg0, (size_t)arg1, (int*)result);
     case SYS_getdents: return shim_do_getdents((int)arg0, (struct linux_dirent*)arg1, (size_t)arg2, (size_t*)result);
     case SYS_getdents64: return shim_do_getdents64((int)arg0, (struct linux_dirent64*)arg1, (size_t)arg2, (size_t*)result);
-    case SYS_chown: return shim_do_chown((const char*)arg0, (uid_t)arg1, (gid_t)arg2, (int*)result);
+    case SYS_chown: return shim_do_chown((char*)arg0, (uid_t)arg1, (gid_t)arg2, (int*)result);
     case SYS_fchown: return shim_do_fchown((int)arg0, (uid_t)arg1, (gid_t) arg2, (int*)result);
-    case SYS_chmod: return shim_do_chmod((const char*)arg0, (mode_t)arg1, (int*) result);
+    case SYS_chmod: return shim_do_chmod((char*)arg0, (mode_t)arg1, (int*) result);
     case SYS_fchmod: return shim_do_fchmod((int)arg0, (mode_t)arg1, (int*) result);
   }
   return 1;
