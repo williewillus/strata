@@ -51,7 +51,7 @@ static int isdirempty(struct inode *dp)
 }
 #endif
 
-int mlfs_posix_open(char *path, int flags, mode_t mode)
+int mlfs_posix_open(const char *path, int flags, mode_t mode)
 {
 	struct file *f;
 	struct inode *inode;
@@ -619,7 +619,7 @@ int mlfs_posix_fcntl(int fd, int cmd, void *arg)
 }
 
 /* Need to test this!!*/
-int mlfs_posix_chmod(char* path, mode_t mode)
+int mlfs_posix_chmod(const char* path, mode_t mode)
 {
 	/*get inode*/
 	struct inode *inode;
@@ -654,7 +654,7 @@ int mlfs_posix_fchmod(int fd, mode_t mode) {
 /* currently negatives treated as not changing group
  * should probably add checks and errors for invalid groups/users
  */
-int mlfs_posix_chown(char* path, uint32_t owner, uint32_t group)
+int mlfs_posix_chown(const char* path, uint32_t owner, uint32_t group)
 {
 	/*get inode*/
 	struct inode *inode;

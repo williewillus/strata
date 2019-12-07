@@ -337,7 +337,7 @@ static mode_t get_umask() {
 }
 
 //supporting type : T_FILE, T_DIR
-struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
+struct inode *mlfs_object_create(const char *path, unsigned short type, mode_t mode)
 {
 	offset_t offset;
 	struct inode *inode = NULL, *parent_inode = NULL;
