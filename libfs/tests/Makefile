@@ -1,6 +1,6 @@
 CC = gcc -std=c99
 #CC = c99
-EXE = iotest file_basic small_io falloc_test ftrunc_test lock_test lock_perf dir_test many_files_test fork_io readdir_test append_test fwrite_fread partial_update_test perms_open perms_chmod perms_specialbits perms_timing
+EXE = iotest file_basic small_io falloc_test ftrunc_test lock_test lock_perf dir_test many_files_test fork_io readdir_test append_test fwrite_fread partial_update_test perms_open perms_chmod perms_specialbits
 #$(info $(EXE))
 
 CUR_DIR = $(shell pwd)
@@ -37,10 +37,6 @@ file_basic: file_basic.c
 
 perms_open: perms_open.c
 	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(CFLAGS) $(LDFLAGS)
-
-perms_timing: perms_timing.c
-	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(CFLAGS) $(LDFLAGS)
-
 
 perms_chmod: perms_chmod.c
 	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(CFLAGS) $(LDFLAGS)
