@@ -11,6 +11,8 @@
 #define TYPEOF(x)
 #endif
 
+int get_secondary_groups(int *count, gid_t **out);
+
 #if defined(__i386__)
 
 static inline unsigned long long asm_rdtsc(void)

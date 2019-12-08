@@ -9,6 +9,7 @@
 #include <fcntl.h>
 
 #include "global/global.h"
+#include "global/util.h"
 #include "global/types.h"
 #include "filesystem/stat.h"
 #include "filesystem/fs.h"
@@ -57,6 +58,27 @@ enum permcheck_type {
   PC_EXECUTE
 };
 
+static int should_group_bits_apply(gid_t primary_gid, gid_t inode_gid) {
+  if (primary_gid == inode_gid)
+    return 1;
+
+  int secondary_grp_count;
+  gid_t *secondary_grp_list;
+  if (get_secondary_groups(&secondary_grp_count, &secondary_grp_list) != 0)
+    /* XXX: Swallowing error and failing */
+    return 0;
+
+  for (int i = 0; i < secondary_grp_count; i++) {
+    if (secondary_grp_list[i] == inode_gid) {
+      mlfs_free(secondary_grp_list);
+      return 1;
+    }
+  }
+
+  mlfs_free(secondary_grp_list);
+  return 0;
+}
+
 static int permission_check(struct inode *inode, uid_t check_uid, gid_t check_gid, enum permcheck_type perm)
 {
   if (check_uid == 0 && perm != PC_EXECUTE) {
@@ -69,7 +91,7 @@ static int permission_check(struct inode *inode, uid_t check_uid, gid_t check_gi
     case PC_WRITE: return (inode->perms & S_IWUSR) != 0;
     case PC_EXECUTE: return (inode->perms & S_IXUSR) != 0;
     }
-  } else if (inode->gid == check_gid) {
+  } else if (should_group_bits_apply(check_gid, inode->gid)) {
     switch (perm) {
     case PC_READ: return (inode->perms & S_IRGRP) != 0;
     case PC_WRITE: return (inode->perms & S_IWGRP) != 0;

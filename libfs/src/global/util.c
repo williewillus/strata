@@ -13,6 +13,26 @@
 #include "global/global.h"
 #include "global/defs.h"
 
+int get_secondary_groups(int *count, gid_t **buf) {
+  int secondary_grp_count = getgroups(0, NULL);
+  if (secondary_grp_count == -1) {
+    return -errno;
+  }
+  gid_t *secondary_grp_list = mlfs_zalloc(secondary_grp_count * sizeof(gid_t)); /* XXX: Overflow */
+  if (!secondary_grp_list) {
+    return -ENOMEM;
+  }
+
+  if (getgroups(secondary_grp_count, secondary_grp_list) == -1) {
+    free(secondary_grp_list);
+    return -errno;
+  }
+
+  *count = secondary_grp_count;
+  *buf = secondary_grp_list;
+  return 0;
+}
+
 void pipeclose(struct pipe *p, int writable)
 {
 	return;

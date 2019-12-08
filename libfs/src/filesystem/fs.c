@@ -5,6 +5,7 @@
 
 #include "mlfs/mlfs_user.h"
 #include "global/global.h"
+#include "global/util.h"
 #include "concurrency/synchronization.h"
 #include "concurrency/thread.h"
 #include "filesystem/fs.h"
@@ -944,19 +945,11 @@ static int chown_perm_check(uid_t owner, gid_t group) {
   }
 
   if (group != -1 && geteuid() != 0) {
-    int secondary_grp_count = getgroups(0, NULL);
-    if (secondary_grp_count == -1) {
-      return -errno;
-    }
-    gid_t *secondary_grp_list = mlfs_zalloc(secondary_grp_count * sizeof(gid_t)); /* XXX: Overflow */
-    if (!secondary_grp_list) {
-      return -ENOMEM;
-    }
-
-    if (getgroups(secondary_grp_count, secondary_grp_list) == -1) {
-      free(secondary_grp_list);
-      return -errno;
-    }
+    int secondary_grp_count;
+    gid_t *secondary_grp_list;
+    int res = get_secondary_groups(&secondary_grp_count, &secondary_grp_list);
+    if (res != 0)
+      return res;
 
     /* may only change to a group the user is a part of */
     if (group != getegid()) {
@@ -969,12 +962,12 @@ static int chown_perm_check(uid_t owner, gid_t group) {
       }
       
       if (!found_group) {
-	free(secondary_grp_list);
+	mlfs_free(secondary_grp_list);
 	return -EPERM;
       }
     }
 
-    free(secondary_grp_list);
+    mlfs_free(secondary_grp_list);
   }
 
   return 0;
