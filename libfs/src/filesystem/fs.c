@@ -938,13 +938,14 @@ int itrunc(struct inode *ip, offset_t length)
    Returns 0 on success, -errno on failure that can be propagated */
 static int chown_perm_check(uid_t owner, gid_t group) {
   /* FIXME: Use CAP_CHOWN instead of checking geteuid != root */
+  int unprivileged = geteuid() != 0;
   
-  if (owner != -1 && geteuid() != 0) {
+  if (owner != -1 && unprivileged) {
     /* only privileged user may change owner */
     return -EPERM;
   }
 
-  if (group != -1 && geteuid() != 0) {
+  if (group != -1 && unprivileged) {
     int secondary_grp_count;
     gid_t *secondary_grp_list;
     int res = get_secondary_groups(&secondary_grp_count, &secondary_grp_list);
@@ -992,8 +993,8 @@ int ichown(struct inode *ip, uid_t owner, gid_t group) {
 
 /* Call in transaction */
 int ichmod(struct inode *ip, mode_t mode) {
-  if ((mode & S_ISUID) || (mode & S_ISVTX)) {
-    mlfs_info("%s: chmod of setuid, sticky bits not supported\n", __func__);
+  if (mode & S_ISUID) {
+    mlfs_info("%s: chmod of setuid bit not supported\n", __func__);
     return -EINVAL;
   }
 
