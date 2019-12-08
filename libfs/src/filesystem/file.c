@@ -383,7 +383,7 @@ struct inode *mlfs_object_create(const char *path, unsigned short type, mode_t m
 	inode->itype = type;
 	inode->nlink = 1;
 	inode->uid = geteuid();
-	inode->gid = parent_inode->gid;
+	inode->gid = getegid(); /* FIXME: Inherit when setgid is set */
 	mode_t mask = get_umask();
 	inode->perms = mode & ~mask;
 	
