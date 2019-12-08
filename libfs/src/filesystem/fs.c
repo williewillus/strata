@@ -1015,7 +1015,7 @@ void stati(struct inode *ip, struct stat *st)
 
 	st->st_dev = ip->dev;
 	st->st_ino = ip->inum;
-	st->st_mode = 0;
+	st->st_mode = ip->perms;
 	st->st_nlink = ip->nlink;
 	st->st_uid = ip->uid;
 	st->st_gid = ip->gid;
