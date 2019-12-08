@@ -74,12 +74,18 @@ static int test_sticky() {
     return 0;
   }
 
-  /* Normally, we'd be able to delete `test` since it and the directory have full perms to the world
+  /* Normally, we'd be able to delete and rename `test` since it and the
+     directory have full perms to the world
      But here the sticky bit on the directory should stop us
    */
   if (unlink("/mlfs/sticky/test") == 0) {
     printf("Deleted file in sticky directory when we should've been stopped\n");
-    return 0;
+    goto err;
+  }
+
+  if (rename("/mlfs/sticky/test", "/mlfs/sticky/test2") == 0) {
+    printf("Renamed file in sticky directory when we should've been stopped\n");
+    goto err;
   }
   
   if (setreuid(-1, 0) != 0) {
@@ -88,6 +94,13 @@ static int test_sticky() {
   }
 
   return 1;
+
+ err:
+  if (setreuid(-1, 0) != 0) {
+    perror("sticky restore setreuid");
+  }
+
+  return 0;
 }
 
 int main()
