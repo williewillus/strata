@@ -382,12 +382,15 @@ struct inode *mlfs_object_create(const char *path, unsigned short type, mode_t m
 
 	inode->itype = type;
 	inode->nlink = 1;
+	inode->perms = mode & ~get_umask();
 	inode->uid = geteuid();
-	inode->gid = getegid(); /* FIXME: Inherit when setgid is set */
-	mode_t mask = get_umask();
-	inode->perms = mode & ~mask;
-	
-	
+	if ((parent_inode->perms & S_ISGID) != 0) {
+	  mlfs_info("trigger sgid parent %d\n", parent_inode->gid);
+	  inode->gid = parent_inode->gid;
+	  inode->perms |= S_ISGID;
+	} else {
+	  inode->gid = getegid();
+	}
 
 	add_to_loghdr(L_TYPE_INODE_CREATE, inode, 0, 
 			sizeof(struct dinode), NULL, 0);

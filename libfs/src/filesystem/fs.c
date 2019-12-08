@@ -992,8 +992,8 @@ int ichown(struct inode *ip, uid_t owner, gid_t group) {
 
 /* Call in transaction */
 int ichmod(struct inode *ip, mode_t mode) {
-  if ((mode & S_ISUID) || (mode & S_ISGID) || (mode & S_ISVTX)) {
-    mlfs_info("%s: chmod of setuid, setgid, sticky bits not supported\n", __func__);
+  if ((mode & S_ISUID) || (mode & S_ISVTX)) {
+    mlfs_info("%s: chmod of setuid, sticky bits not supported\n", __func__);
     return -EINVAL;
   }
 
