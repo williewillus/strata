@@ -384,7 +384,7 @@ static int test_chmod_other() {
   return 1;
 }
 
-int main(int argc, char ** argv)
+int main()
 {
 	init_fs();
 	int fd = mkdir("/mlfs/", 0600);

@@ -15,7 +15,7 @@ DAX_OBJ = ../build/storage/storage_dax.o
 DPDK_VER := 16.07.2
 DPDK_DIR := $(abspath $(CURDIR)/../lib/dpdk-$(DPDK_VER)/x86_64-native-linuxapp-gcc)
 
-CFLAGS=-I $(DPDK_DIR)/include -I$(INCLUDES) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
+CFLAGS=-I $(DPDK_DIR)/include -I$(INCLUDES) -D_DEFAULT_SOURCE
 
 LDFLAGS = -Wl,-rpath=$(abspath $(LIBFS_DIR)) \
 		  -Wl,-rpath=$(abspath $(NVML_DIR)) \
@@ -30,7 +30,7 @@ all: $(EXE)
 	$(CXX) -std=c++11 $(CFLAGS) -c -g $< -o $@
 
 time_stat.o: time_stat.c
-	$(CC) time_stat.c -c -o time_stat.o -D_BSD_SOURCE
+	$(CC) $(CFLAGS) time_stat.c -c -o time_stat.o
 
 file_basic: file_basic.c
 	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(LDFLAGS)
