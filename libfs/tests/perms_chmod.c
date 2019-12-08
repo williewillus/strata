@@ -10,6 +10,11 @@
 static const int TEST_USER = 1002;
 static const int TEST_GROUP = 1002;
 
+static void flush_log() {
+  make_digest_request_async(100);
+  wait_on_digesting();
+}
+
 static int test_chmod_user() {
   int fd = open("/mlfs/user", O_RDWR|O_CREAT, 0600);
   if (fd < 0) {
@@ -32,6 +37,7 @@ static int test_chmod_user() {
       perror("chmod");
       return 0;
     }
+    flush_log();
 
     if (setreuid(-1, TEST_USER) != 0) {
       perror("read setreuid");
@@ -72,6 +78,7 @@ static int test_chmod_user() {
       perror("chmod");
       return 0;
     }
+    flush_log();
 
     if (setreuid(-1, TEST_USER) != 0) {
       perror("write setreuid");
@@ -144,6 +151,7 @@ static int test_chmod_group() {
       perror("chmod");
       return 0;
     }
+    flush_log();
 
     if (setregid(-1, TEST_GROUP) != 0) {
       perror("read setregid");
@@ -194,6 +202,7 @@ static int test_chmod_group() {
       perror("chmod");
       return 0;
     }
+    flush_log();
 
     if (setregid(-1, TEST_GROUP) != 0) {
       perror("write setregid");
@@ -275,6 +284,7 @@ static int test_chmod_other() {
       perror("chmod");
       return 0;
     }
+    flush_log();
 
     if (setregid(-1, TEST_GROUP) != 0) {
       perror("read setregid");
@@ -325,6 +335,7 @@ static int test_chmod_other() {
       perror("chmod");
       return 0;
     }
+    flush_log();
 
     if (setregid(-1, TEST_GROUP) != 0) {
       perror("write setregid");
@@ -391,6 +402,7 @@ int main()
 
 	if (fd < 0) {
 		perror("mkdir\n");
+		shutdown_fs();
 		return 1;
 	}
 
@@ -400,4 +412,6 @@ int main()
 	printf("=== test_chmod_group %s ===\n", test_chmod_group() ? "succeeded" : "failed");
         printf("=== starting test_chmod_other ===\n");
 	printf("=== test_chmod_other %s ===\n", test_chmod_other() ? "succeeded" : "failed");
+	shutdown_fs();
+	return 0;
 }
