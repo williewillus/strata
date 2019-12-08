@@ -948,7 +948,7 @@ static int chown_perm_check(uid_t owner, gid_t group) {
     if (secondary_grp_count == -1) {
       return -errno;
     }
-    gid_t *secondary_grp_list = calloc(secondary_grp_count, sizeof(gid_t));
+    gid_t *secondary_grp_list = mlfs_zalloc(secondary_grp_count * sizeof(gid_t)); /* XXX: Overflow */
     if (!secondary_grp_list) {
       return -ENOMEM;
     }

@@ -8,7 +8,7 @@
 #include <mlfs/mlfs_interface.h>
 
 static int test_create_rdonly() {
-    int fd = open("/mlfs/test_create_readonly", O_RDONLY|O_CREAT, 0400);
+    int fd = open("/mlfs/test_create_readonly", O_RDONLY|O_CREAT, S_IRUSR);
     if (fd < 0) {
         perror("open with O_CREAT");
         return 0;
@@ -31,7 +31,7 @@ static int test_create_rdonly() {
 }
 
 static int test_create_wronly() {
-    int fd = open("/mlfs/test_create_wronly", O_WRONLY|O_CREAT, 0200);
+    int fd = open("/mlfs/test_create_wronly", O_WRONLY|O_CREAT, S_IWUSR);
     if (fd < 0) {
         perror("open with O_CREAT");
         return 0;
@@ -54,7 +54,7 @@ static int test_create_wronly() {
 }
 
 static int test_create_rdwr() {
-    int fd = open("/mlfs/test_create_rdwr", O_RDWR|O_CREAT, 0600);
+    int fd = open("/mlfs/test_create_rdwr", O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         perror("open with O_CREAT");
         return 0;
@@ -94,6 +94,12 @@ int main(int argc, char ** argv)
 	if (fd < 0) {
 		perror("mkdir\n");
 		return 1;
+	}
+
+	/* switch to unprivileged user since root has special perm overrides */
+	if (setreuid(-1, 1002) != 0) {
+	  perror("setreuid");
+	  return 1;
 	}
 
 	printf("test_create_rdonly %s\n", test_create_rdonly() ? "succeeded" : "failed");

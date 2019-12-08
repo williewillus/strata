@@ -36,7 +36,7 @@ file_basic: file_basic.c
 	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(LDFLAGS)
 
 perms_open: perms_open.c
-	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(LDFLAGS)
+	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(CFLAGS) $(LDFLAGS)
 
 perms_chmod: perms_chmod.c
 	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs $(CFLAGS) $(LDFLAGS)
