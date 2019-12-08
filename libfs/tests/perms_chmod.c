@@ -10,7 +10,6 @@
 static const int TEST_USER = 1002;
 static const int TEST_GROUP = 1002;
 
-
 static int test_chmod_user() {
   int fd = open("/mlfs/user", O_RDWR|O_CREAT, 0600);
   if (fd < 0) {
@@ -133,7 +132,7 @@ static int test_chmod_group() {
     perror("setup group");
     return 0;
   }
-  if (fchown(fd, TEST_USER, TEST_GROUP) != 0) {
+  if (fchown(fd, -1, TEST_GROUP) != 0) {
     perror("chown");
     return 0;
   }

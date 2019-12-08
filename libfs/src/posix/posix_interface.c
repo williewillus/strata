@@ -59,6 +59,10 @@ enum permcheck_type {
 
 static int permission_check(struct inode *inode, uid_t check_uid, gid_t check_gid, enum permcheck_type perm)
 {
+  if (check_uid == 0 && perm != PC_EXECUTE) {
+    return 1;
+  }
+  mlfs_debug("ckuid %d ckgid %d iuid %d igid %d imode %o\n", check_uid, check_gid, inode->uid, inode->gid, inode->perms);
   if (inode->uid == check_uid) {
     switch (perm) {
     case PC_READ: return (inode->perms & S_IRUSR) != 0;
@@ -171,15 +175,7 @@ int mlfs_posix_open(const char *path, int flags, mode_t mode)
 	f->ip = inode;
 	f->readable = !(flags & O_WRONLY);
 	f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
-
 	f->off = 0;
-
-	/* TODO: set inode permission based the mode 
-	if (mode & S_IRUSR)
-		// Set read permission
-	if (mode & S_IWUSR)
-		// Set write permission
-	*/
 
 	pthread_rwlock_unlock(&f->rwlock);
 
