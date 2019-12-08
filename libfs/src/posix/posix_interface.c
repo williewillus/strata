@@ -604,6 +604,18 @@ int mlfs_posix_rename(const char *oldpath, const char *newpath)
 
 	start_log_tx();
 
+	struct inode *old_inode = dir_lookup(old_dir_inode, old_file_name, NULL);
+	if (!old_inode) {
+	  abort_log_tx();
+	  return -ENOENT;
+	}
+	int violates_sticky = violates_sticky_bit(old_dir_inode, old_inode);
+	iput(old_inode);
+	if (violates_sticky) {
+	  abort_log_tx();
+	  return -EPERM;
+	}
+
 	mlfs_assert(strlen(old_file_name) <= DIRSIZ);
 	mlfs_assert(strlen(new_file_name) <= DIRSIZ);
 
