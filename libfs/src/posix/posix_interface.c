@@ -398,7 +398,7 @@ int mlfs_posix_rmdir(const char *path)
 
 	dir_inode = namei(path);
 	char name[DIRSIZ];
-	parent_inode = nameiparent(path, name);
+	struct inode *parent_inode = nameiparent(path, name);
 	if (!parent_inode) {
 	  abort_log_tx();
 	  return -ENOENT;
