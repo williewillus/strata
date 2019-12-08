@@ -379,6 +379,16 @@ exit_mkdir:
 	return ret;
 }
 
+static int violates_sticky_bit(struct inode *parent, struct inode *to_manipulate) {
+  if ((parent->perms & S_ISVTX) == 0) {
+    return 0;
+  }
+
+  /* FIXME: check CAP_FOWNER instead of euid != 0 */
+  int uid = geteuid();
+  return uid != 0 && uid != to_manipulate->uid && uid != parent->uid;
+}
+
 int mlfs_posix_rmdir(const char *path)
 {
 	int ret = 0;
@@ -387,6 +397,17 @@ int mlfs_posix_rmdir(const char *path)
 	start_log_tx();
 
 	dir_inode = namei(path);
+	char name[DIRSIZ];
+	struct inode *parent_inode = nameiparent(path, name);
+	if (!parent_inode) {
+	  abort_log_tx();
+	  return -ENOENT;
+	}
+
+	if (violates_sticky_bit(parent_inode, dir_inode)) {
+	  abort_log_tx();
+	  return -EPERM;
+	}
 
 	if (!dir_inode) {
 		abort_log_tx();
@@ -495,6 +516,9 @@ int mlfs_posix_unlink(const char *filename)
 
 	if (!inode)  
 		return -ENOENT;
+
+	if (violates_sticky_bit(dir_inode, inode))
+	  return -EPERM;
 
 	start_log_tx();
 	
